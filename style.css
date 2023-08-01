@@ -38,7 +38,7 @@ p {
 }
 
 h1 {
-  font-size: 3vw;
+  font-size: 2vw;
   width:fit-content;
   align-self: center;
   position:relative;
@@ -67,9 +67,8 @@ footer > * {
 .socials {
   background-color: var(--60);
   border-radius: 1.5vw;
-  scale:0.75;
+  scale:0.5;
   width: fit-content;
-  height: fit-content;
   margin: auto;
   margin-top: 2vh;
   margin-bottom: 2vh;
@@ -177,8 +176,9 @@ footer > * {
 }
 
 .card:hover {
-  width: 17vw;
-  height: 17vw;
+  width: 15.5vw;
+  height: 15.5vw;
+  transition: width 0.2s height 0.2s;
   
 }
 .card-gradient {
