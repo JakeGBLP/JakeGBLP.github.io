@@ -111,7 +111,8 @@ for (let i of Array(200).keys()) {
 }
 constellation(constellations[0]);
 
-const isMobile = screen.height/screen.width > 0.9 || screen.height <= 1024
+// const isMobile = screen.height/screen.width > 0.9 || screen.height <= 1024;
+const isMobile = false;
 console.log(screen.height);
 console.log(screen.width);
 console.log(screen.height/screen.width);
