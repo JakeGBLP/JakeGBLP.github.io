@@ -1,0 +1,105 @@
+<style>
+  html {
+    stroke: black;
+    fill: black;
+  }
+  #logo-svg {
+    width: 100%;
+    aspect-ratio: 1.45714285714/1;
+    & > rect {
+      width: 7.84313725%;
+      stroke: transparent;
+      fill: inherit;
+      &:nth-of-type(1) {
+        height: 100%;
+        x: 39.2156863%;
+      }
+      &:nth-of-type(2) {
+        height: 48.5714286%;
+        x: 47.0588235%;
+        y: 17.1428571%;
+        transform-origin: 47.0588235% 65.7142857%;
+        transform: rotate(45deg);
+      }
+      &:nth-of-type(3) {
+        height: 48.5714286%;
+        x: 39.2156863%;
+        y: 17.1428571%;
+        transform-origin: 47.0588235% 65.7142857%;
+        transform: rotate(135deg);
+      }
+      &:nth-of-type(4) {
+        height: 42.8571429%;
+        x: 62.745098%;
+        y: 31.4285714%;
+        transform-origin: 70.5882353% 31.25%;
+        transform: rotate(-90deg);
+      }
+      &:nth-of-type(5) {
+        height: 42.8571429%;
+        x: 62.745098%;
+        y: 88.5714286%;
+        transform-origin: 70.5882353% 88.5714286%;
+        transform: rotate(-90deg);
+      }
+      &:nth-of-type(6) {
+        height: 67.1428571%;
+        x: 45.0980392%;
+        y: 78.5714286%;
+        transform-origin: 47.0588235% 68.5714286%;
+        transform: rotate(-90deg);
+      }
+    }
+    & > circle {
+      fill: transparent;
+      stroke: inherit;
+      &:nth-of-type(1) {
+        mask: url(#logo-mask);
+      }
+    }
+    & circle:nth-of-type(1) {
+      cx: 23.5294118%;
+      cy: 65.7142857%;
+      r: 22.9%;
+      stroke-width: 9%;
+    }
+    & > defs > mask#logo-mask {
+      & > circle {
+        stroke: white;
+      }
+      & > rect {
+        width: 4.90196078%;
+        fill: black;
+        stroke: none;
+        &:nth-of-type(1) {
+          height: 14.2857143%;
+          x: 19.1176471%;
+          y: 92.8571429%;
+          transform-origin: 27.4509804% 71.4285714%;
+          transform: rotate(45deg);
+        }
+        &:nth-of-type(2) {
+          height: 35.7142857%;
+          x: 34.3137255%;
+          y: 28.5714286%;
+        }
+      }
+    }
+  }
+</style>
+<svg id="logo-svg">
+  <defs>
+    <mask id="logo-mask">
+      <circle/>
+      <rect/>
+      <rect/>
+    </mask>
+  </defs>
+  <circle/>
+  <rect/>
+  <rect/>
+  <rect/>
+  <rect/>
+  <rect/>
+  <rect/>
+</svg>
