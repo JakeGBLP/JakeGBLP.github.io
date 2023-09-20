@@ -1,3 +1,3 @@
-# PublicJake.github.io
+# JakeGBLP.github.io
 
-[PublicJake.github.io](https://publicjake.github.io/)
+[JakeGBLP.github.io](https://JakeGBLP.github.io/)
