@@ -3,7 +3,7 @@ const getCookie = (name) => (
 )
 
 function setCookie(name,value,days) {
-  var expires = "";
+  let expires = "";
   if (days) {
       var date = new Date();
       date.setTime(date.getTime() + (days*24*60*60*1000));
@@ -25,7 +25,7 @@ function write(element,text,speed,exclude,waitForExcluded) {
   }
 }
 
-const sky = document.querySelector("#sky");
+const sky = document.querySelector("#sky"),
       skyParent = sky.parentElement,
       scale = 2,
       width = sky.clientWidth,
@@ -60,7 +60,7 @@ const constellations = [
       [65,126,3]
     ],
     maxWidth: function() {
-      var max = 0;
+      let max = 0;
       for (let forStar of this.stars.keys()) {
         if (forStar[0] > max) max = forStar[0];
       }
@@ -75,8 +75,8 @@ function constellation(constellation) {
   let container = document.createElement("span");
   container.id = constellation.name;
   container.className = "constellation";
-  container.style.left = Math.random(1)*80+"%";
-  container.style.top = Math.random(1)*50+"%";
+  container.style.left = Math.random()*80+"%";
+  container.style.top = Math.random()*50+"%";
   sky.appendChild(container);
   for (let value of constellation.stars) {
     value[0] = value[0]*scale;
