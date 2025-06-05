@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plugin Version Usage + GitHub Releases</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #DDD;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            font-weight: 600;
+            font-size: 1.6rem;
+            margin-bottom: 0.5rem;
+            color: #EEE;
+            text-align: center;
+        }
+        label {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            user-select: none;
+        }
+        input[type="checkbox"] {
+            margin-left: 0.5rem;
+            transform: scale(1.2);
+            vertical-align: middle;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+            max-width: 1800px;
+            width: 100%;
+        }
+        section {
+            background-color: #1E1E1E;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+            width: 45%;
+            height: max-content;
+            min-width: 350px;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+        @media (max-width: 900px) {
+            section {
+                width: 95%;
+            }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #333;
+            text-align: left;
+            vertical-align: middle;
+            color: #DDD;
+        }
+        th {
+            background-color: #272727;
+            font-weight: 600;
+            user-select: none;
+        }
+        .version-cell {
+            background: #333;
+            font-weight: 700;
+            text-align: center;
+            color: #A3D5FF;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        .percentage-cell {
+            white-space: nowrap;
+        }
+        td a {
+            color: #82CFFF;
+            text-decoration: none;
+        }
+        td a:hover {
+            text-decoration: underline;
+        }
+
+        tr:hover {
+            background-color: #2A2A2A;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Skript/SkBee User Data</h1>
+
+<div class="container">
+    <section>
+        <h2>Skript</h2>
+        <table aria-label="Skript">
+            <thead>
+            <tr>
+                <th>Version</th>
+                <th>Patch</th>
+                <th>Patch Usage</th>
+                <th>Patch %</th>
+                <th>Patch Downloads (est.)</th>
+                <th>Usage</th>
+                <th>%</th>
+                <th>Downloads (est.)</th>
+                <th>Total Downloads (est.)</th>
+            </tr>
+            </thead>
+            <tbody id="skriptTableBody"></tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>SkBee</h2>
+        <table aria-label="SkBee">
+            <thead>
+            <tr>
+                <th>Version</th>
+                <th>Patch</th>
+                <th>Patch Usage</th>
+                <th>Patch %</th>
+                <th>Patch Downloads (est.)</th>
+                <th>Usage</th>
+                <th>%</th>
+                <th>Downloads (est.)</th>
+                <th>Total Downloads (est.)</th>
+            </tr>
+            </thead>
+            <tbody id="skbeeTableBody"></tbody>
+        </table>
+    </section>
+</div>
+
+<script>
+    (async () => {
+        const Plugins = {
+            Skript: {
+                id: 722,
+                githubMain: { owner: "SkriptLang", repo: "Skript" },
+                githubLegacy: null
+            },
+            SkBee: {
+                id: 6719,
+                githubMain: { owner: "ShaneBeee", repo: "SkBee" },
+                githubLegacy: { owner: "SkriptHub", repo: "SkBee" }
+            }
+        };
+
+
+        async function fetchJson(url) {
+            const headers = {};
+            if (typeof GITHUB_TOKEN !== "undefined" && GITHUB_TOKEN) {
+                headers['Authorization'] = `token ${GITHUB_TOKEN}`;
+            }
+            const res = await fetch(url, { headers });
+            if (!res.ok) {
+                throw new Error(`Failed to fetch ${url} (status: ${res.status})`);
+            }
+            return await res.json();
+        }
+
+        async function fetchAllTags(owner, repo) {
+            let page = 1, all = [];
+            while (true) {
+                const url = `https://api.github.com/repos/${owner}/${repo}/tags?per_page=100&page=${page}`;
+                const arr = await fetchJson(url);
+                if (!arr.length) break;
+                all = all.concat(arr);
+                page++;
+            }
+            return all;
+        }
+
+        async function fetchAllReleases(owner, repo) {
+            let page = 1, all = [];
+            while (true) {
+                const url = `https://api.github.com/repos/${owner}/${repo}/releases?per_page=100&page=${page}`;
+                const arr = await fetchJson(url);
+                if (!arr.length) break;
+                all = all.concat(arr);
+                page++;
+            }
+            return all;
+        }
+
+        function normalizeVersion(tagName) {
+            return tagName.startsWith("v") ? tagName.slice(1) : tagName;
+        }
+
+        async function fetchBStats(pluginId) {
+            const url = `https://bstats.org/api/v1/plugins/${pluginId}/charts/pluginVersion/data`;
+            return await fetchJson(url);
+        }
+
+        function parseBStats(json) {
+            const majorMinorMap = {};
+            const patchMap      = {};
+            let totalUsage = 0;
+
+            for (const [, entry] of Object.entries(json)) {
+                const baseVersion = entry.name.split("-")[0];
+                const parts = baseVersion.split(".");
+                if (parts.length < 3) continue;
+                const [major, minor, patch] = parts;
+                const mm = `${major}.${minor}`;
+                const pv = `${major}.${minor}.${patch}`;
+                const usage = entry.y;
+                totalUsage += usage;
+
+                majorMinorMap[mm] = (majorMinorMap[mm] || 0) + usage;
+                if (!patchMap[mm]) patchMap[mm] = {};
+                patchMap[mm][pv] = usage;
+            }
+            return { majorMinorMap, patchMap, totalUsage };
+        }
+
+        function calculatePercentages(mapObj, total) {
+            const pct = {};
+            for (const [ver, count] of Object.entries(mapObj)) {
+                pct[ver] = ((count / total) * 100).toFixed(2) + "%";
+            }
+            return pct;
+        }
+
+        function mergeVersions(arr1, arr2) {
+            const s = new Set(arr1);
+            arr2.forEach(v => s.add(v));
+            return Array.from(s);
+        }
+
+        function groupByMajorMinor(versions) {
+            const map = {};
+            for (const v of versions) {
+                const parts = v.split(".");
+                if (parts.length < 3) continue;
+                const mm = parts.slice(0, 2).join(".");
+                if (!map[mm]) map[mm] = [];
+                map[mm].push(v);
+            }
+            for (const [mm, arr] of Object.entries(map)) {
+                arr.sort((a, b) => {
+                    const pa = parseInt(a.split(".")[2], 10);
+                    const pb = parseInt(b.split(".")[2], 10);
+                    return pa - pb;
+                });
+            }
+            return map;
+        }
+
+        function sumDownloads(patchList, dlMap) {
+            return patchList.reduce((acc, v) => acc + (dlMap[v] || 0), 0);
+        }
+
+        function renderTable({
+                                 allMajorMinors,
+                                 bStatsMMMap,
+                                 bStatsPatchMap,
+                                 bStatsPctMM,
+                                 bStatsPctPatch,
+                                 patchDownloads,
+                                 minorDownloads,
+                                 totalDownloadsEst
+                             }, tbody) {
+            tbody.innerHTML = "";
+
+            allMajorMinors.sort((a, b) => {
+                const [aM, aN] = a.split(".").map(Number);
+                const [bM, bN] = b.split(".").map(Number);
+                return aM - bM || aN - bN;
+            });
+
+            const rows = [];
+            for (const mm of allMajorMinors) {
+                const bStatsPatches = bStatsPatchMap[mm] ? Object.keys(bStatsPatchMap[mm]) : [];
+                const ghPatches = githubPatchMapGlobal[mm] || [];
+                const mergedPatches = Array.from(new Set([...bStatsPatches, ...ghPatches]));
+                const numRows = mergedPatches.length || 1;
+
+                for (let i = 0; i < numRows; i++) {
+                    const patchVer = mergedPatches[i] || "";
+                    const hasPatchUsage = patchVer && (bStatsPatchMap[mm] && bStatsPatchMap[mm][patchVer] !== undefined);
+                    const hasPatchDl    = patchVer && (patchDownloads[patchVer] !== undefined && patchDownloads[patchVer] > 0);
+                    const hasMinorUsage = (bStatsMMMap[mm] !== undefined && bStatsMMMap[mm] > 0);
+                    const hasMinorDl    = (minorDownloads[mm] !== undefined && minorDownloads[mm] > 0);
+
+                    rows.push({
+                        isFirstOfMM: i === 0,
+                        rowspanForMM: numRows,
+                        versionLabel: `${mm}.x`,
+                        patchVer,
+                        patchUsage: hasPatchUsage ? bStatsPatchMap[mm][patchVer] : (patchVer ? "(no data)" : ""),
+                        patchPct: hasPatchUsage ? bStatsPctPatch[patchVer] : (patchVer ? "(no data)" : ""),
+                        patchDl: hasPatchDl ? patchDownloads[patchVer] : (patchVer ? "(no data)" : ""),
+                        minorUsage: hasMinorUsage ? bStatsMMMap[mm] : (hasMinorUsage===false && hasMinorDl===false ? "(no data)" : ""),
+                        minorPct: hasMinorUsage ? bStatsPctMM[mm] : (hasMinorUsage===false && hasMinorDl===false ? "(no data)" : ""),
+                        minorDl: hasMinorDl ? minorDownloads[mm] : (hasMinorUsage===false && hasMinorDl===false ? "(no data)" : ""),
+                        cellHasData: {
+                            version: true,
+                            patch: Boolean(patchVer),
+                            patchUsage: hasPatchUsage,
+                            patchPct: hasPatchUsage,
+                            patchDl: hasPatchDl,
+                            minorUsage: hasMinorUsage,
+                            minorPct: hasMinorUsage,
+                            minorDl: hasMinorDl,
+                            totalDl: totalDownloadsEst > 0
+                        }
+                    });
+                }
+            }
+
+            const totalRows = rows.length;
+            for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
+                const r = rows[rowIndex];
+                const tr = document.createElement("tr");
+
+                if (r.isFirstOfMM) {
+                    const tdV = document.createElement("td");
+                    tdV.textContent = r.versionLabel;
+                    tdV.classList.add("version-cell");
+                    tdV.rowSpan = r.rowspanForMM;
+                    tr.appendChild(tdV);
+                }
+
+                const tdPatch = document.createElement("td");
+                if (r.patchVer) {
+                    const a = document.createElement("a");
+                    const origTag = patchToTagNameGlobal[r.patchVer] || r.patchVer;
+                    a.href = `https://github.com/${currentOwner}/${currentRepo}/releases/tag/${origTag}`;
+                    a.target = "_blank";
+                    a.textContent = r.patchVer;
+                    tdPatch.appendChild(a);
+                }
+                if (r.cellHasData.patch) tdPatch.classList.add("has-data");
+                else tdPatch.classList.add("no-data");
+                tr.appendChild(tdPatch);
+
+                const tdPU = document.createElement("td");
+                tdPU.textContent = r.patchUsage;
+                if (r.cellHasData.patchUsage) tdPU.classList.add("has-data");
+                else tdPU.classList.add("no-data");
+                tr.appendChild(tdPU);
+
+                const tdPP = document.createElement("td");
+                tdPP.textContent = r.patchPct;
+                tdPP.classList.add("percentage-cell");
+                if (r.cellHasData.patchPct) tdPP.classList.add("has-data");
+                else tdPP.classList.add("no-data");
+                tr.appendChild(tdPP);
+
+                const tdPD = document.createElement("td");
+                tdPD.textContent = r.patchDl;
+                if (r.cellHasData.patchDl) tdPD.classList.add("has-data");
+                else tdPD.classList.add("no-data");
+                tr.appendChild(tdPD);
+
+                if (r.isFirstOfMM) {
+                    const tdMU = document.createElement("td");
+                    tdMU.textContent = r.minorUsage;
+                    if (r.cellHasData.minorUsage) tdMU.classList.add("has-data");
+                    else tdMU.classList.add("no-data");
+                    tdMU.rowSpan = r.rowspanForMM;
+                    tr.appendChild(tdMU);
+
+                    const tdMP = document.createElement("td");
+                    tdMP.textContent = r.minorPct;
+                    tdMP.classList.add("percentage-cell");
+                    if (r.cellHasData.minorPct) tdMP.classList.add("has-data");
+                    else tdMP.classList.add("no-data");
+                    tdMP.rowSpan = r.rowspanForMM;
+                    tr.appendChild(tdMP);
+
+                    const tdMD = document.createElement("td");
+                    tdMD.textContent = r.minorDl;
+                    if (r.cellHasData.minorDl) tdMD.classList.add("has-data");
+                    else tdMD.classList.add("no-data");
+                    tdMD.rowSpan = r.rowspanForMM;
+                    tr.appendChild(tdMD);
+                }
+
+                if (rowIndex === 0) {
+                    const tdTD = document.createElement("td");
+                    tdTD.textContent = totalDownloadsEst;
+                    if (r.cellHasData.totalDl) tdTD.classList.add("has-data");
+                    else tdTD.classList.add("no-data");
+                    tdTD.rowSpan = totalRows;
+                    tr.appendChild(tdTD);
+                }
+
+                tbody.appendChild(tr);
+            }
+
+            if (!tbody.children.length) {
+                const tr = document.createElement("tr");
+                const td = document.createElement("td");
+                td.colSpan = 9;
+                td.style.textAlign = "center";
+                td.textContent = "No versions to display";
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            }
+        }
+
+        async function loadPlugin(pluginDef, tbodyElem) {
+            try {
+                const bStatsRaw = await fetchBStats(pluginDef.id);
+                const { majorMinorMap: bStatsMM, patchMap: bStatsPMap, totalUsage } = parseBStats(bStatsRaw);
+
+                const mainTags = await fetchAllTags(pluginDef.githubMain.owner, pluginDef.githubMain.repo);
+                const mainReleases = await fetchAllReleases(pluginDef.githubMain.owner, pluginDef.githubMain.repo);
+
+                let legacyTags = [], legacyReleases = [];
+                if (pluginDef.githubLegacy) {
+                    legacyTags = await fetchAllTags(pluginDef.githubLegacy.owner, pluginDef.githubLegacy.repo);
+                    legacyReleases = await fetchAllReleases(pluginDef.githubLegacy.owner, pluginDef.githubLegacy.repo);
+                }
+
+                const mainTagMap = mainTags.map(t => ({ orig: t.name, norm: normalizeVersion(t.name) }));
+                const legacyTagMap = legacyTags.map(t => ({ orig: t.name, norm: normalizeVersion(t.name) }));
+
+                const mainNormsSet = new Set(mainTagMap.map(o => o.norm));
+                const legacyOnlyMap = legacyTagMap.filter(o => !mainNormsSet.has(o.norm));
+
+                const allTagPairs = mainTagMap.concat(legacyOnlyMap);
+                patchToTagNameGlobal = {};
+                allTagPairs.forEach(o => { patchToTagNameGlobal[o.norm] = o.orig; });
+
+                const allNormalizedVersions = allTagPairs.map(o => o.norm);
+
+                githubPatchMapGlobal = groupByMajorMinor(allNormalizedVersions);
+                const allMajorMinors = Object.keys(githubPatchMapGlobal);
+
+                const combinedReleases = mainReleases.concat(legacyReleases);
+                const patchDownloads = {};
+                combinedReleases.forEach(rel => {
+                    const norm = normalizeVersion(rel.tag_name);
+                    const count = rel.assets.reduce((sum, a) => sum + (a.download_count || 0), 0);
+                    patchDownloads[norm] = (patchDownloads[norm] || 0) + count;
+                });
+
+                const minorDownloads = {};
+                for (const [mm, patchList] of Object.entries(githubPatchMapGlobal)) {
+                    minorDownloads[mm] = sumDownloads(patchList, patchDownloads);
+                }
+
+                const totalDownloadsEst = Object.values(patchDownloads).reduce((a, b) => a + b, 0);
+
+                const bStatsPctPatch = {};
+                for (const [mm, pmap] of Object.entries(bStatsPMap)) {
+                    for (const [pv, usage] of Object.entries(pmap)) {
+                        bStatsPctPatch[pv] = ((usage / totalUsage) * 100).toFixed(2) + "%";
+                    }
+                }
+                const bStatsPctMM = calculatePercentages(bStatsMM, totalUsage);
+
+                currentOwner = pluginDef.githubMain.owner;
+                currentRepo = pluginDef.githubMain.repo;
+
+                renderTable({
+                    allMajorMinors,
+                    bStatsMMMap: bStatsMM,
+                    bStatsPatchMap: bStatsPMap,
+                    bStatsPctMM,
+                    bStatsPctPatch,
+                    patchDownloads,
+                    minorDownloads,
+                    totalDownloadsEst
+                }, tbodyElem);
+            }
+            catch (err) {
+                tbodyElem.innerHTML = `<tr><td colspan="9" style="color:#F44336; text-align:center;">Error loading data: ${err.message}</td></tr>`;
+                console.error(err);
+            }
+        }
+
+        let currentOwner = "", currentRepo = "";
+        let patchToTagNameGlobal = {}, githubPatchMapGlobal = {};
+
+        const GITHUB_TOKEN = '';
+
+        await loadPlugin(Plugins.Skript, document.getElementById("skriptTableBody"));
+        await loadPlugin(Plugins.SkBee, document.getElementById("skbeeTableBody"));
+    })();
+</script>
+</body>
+</html>
